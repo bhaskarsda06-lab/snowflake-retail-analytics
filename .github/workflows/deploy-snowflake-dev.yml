@@ -15,10 +15,7 @@ jobs:
 
       - name: Show Repository Structure
         run: |
-          echo "Current Directory:"
           pwd
-          echo ""
-          echo "Repository Files:"
           find . -type f | sort
 
       - name: Setup Python
@@ -33,9 +30,7 @@ jobs:
       - name: Create Private Key
         run: |
           mkdir -p ~/.snowflake
-
           printf "%s" "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > ~/.snowflake/rsa_key.p8
-
           chmod 600 ~/.snowflake/rsa_key.p8
 
       - name: Create Snowflake Config
@@ -55,9 +50,14 @@ jobs:
 
           chmod 600 ~/.snowflake/config.toml
 
-      - name: Test Connection
+      - name: Test Snowflake Connection
         run: |
-          snow sql -c default -q "SELECT CURRENT_USER();"
+          snow sql -c default -q "
+          SELECT CURRENT_USER(),
+                 CURRENT_ROLE(),
+                 CURRENT_WAREHOUSE(),
+                 CURRENT_DATABASE();
+          "
 
       #################################################
       # PHASE 01
@@ -95,25 +95,52 @@ jobs:
         run: |
           snow sql -c default \
           -f phase03_ingestion/05_tables_raw.sql
-     - name: Clean Stages
-       run: |
-         snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.CUSTOMERS_STAGE;"
-         snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.PRODUCTS_STAGE;"
-         snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.STORES_STAGE;"
-         snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.SALES_STAGE;"     
+
+      - name: Clean Stages
+        run: |
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.CUSTOMERS_STAGE;"
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.PRODUCTS_STAGE;"
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.STORES_STAGE;"
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.SALES_STAGE;"
+
+      - name: Verify CSV Files
+        run: |
+          echo "CUSTOMERS"
+          cat data/customers.csv
+
+          echo "PRODUCTS"
+          cat data/products.csv
+
+          echo "STORES"
+          cat data/stores.csv
+
+          echo "SALES"
+          cat data/sales.csv
 
       - name: Upload CSV Files
         run: |
-          snow stage copy data/customers.csv @RETAIL_DB.STAGE.CUSTOMERS_STAGE -c default
-          snow stage copy data/products.csv @RETAIL_DB.STAGE.PRODUCTS_STAGE -c default
-          snow stage copy data/stores.csv @RETAIL_DB.STAGE.STORES_STAGE -c default
-          snow stage copy data/sales.csv @RETAIL_DB.STAGE.SALES_STAGE -c default
+          snow stage copy data/customers.csv @RETAIL_DB.STAGE.CUSTOMERS_STAGE -c default --overwrite
+          snow stage copy data/products.csv @RETAIL_DB.STAGE.PRODUCTS_STAGE -c default --overwrite
+          snow stage copy data/stores.csv @RETAIL_DB.STAGE.STORES_STAGE -c default --overwrite
+          snow stage copy data/sales.csv @RETAIL_DB.STAGE.SALES_STAGE -c default --overwrite
 
       - name: Phase03 Copy Commands
         run: |
           snow sql -c default \
           -f phase03_ingestion/06_copy_commands.sql
 
-      - name: Done
+      - name: Validate Loaded Data
         run: |
-          echo "Phase 1 to 3 completed successfully"
+          snow sql -c default -q "
+          SELECT 'CUSTOMERS' TABLE_NAME, COUNT(*) CNT FROM RETAIL_DB.RAW.CUSTOMERS
+          UNION ALL
+          SELECT 'PRODUCTS', COUNT(*) FROM RETAIL_DB.RAW.PRODUCTS
+          UNION ALL
+          SELECT 'STORES', COUNT(*) FROM RETAIL_DB.RAW.STORES
+          UNION ALL
+          SELECT 'SALES', COUNT(*) FROM RETAIL_DB.RAW.SALES;
+          "
+
+      - name: Deployment Complete
+        run: |
+          echo 'Phase 1 to 3 completed successfully'
