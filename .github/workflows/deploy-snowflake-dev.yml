@@ -87,7 +87,7 @@ jobs:
         run: snow sql -c default -f phase03_ingestion/05_tables_raw.sql
 
       - name: Phase03 Copy Commands
-        run: snow sql -c default -f phase03_ingestion/06_copy_commands.sql
+        run: snow sql -c default -f phase03_ingestion/06_copy_commands.yml
 
       # Phase 04
 
