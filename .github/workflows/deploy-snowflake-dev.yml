@@ -8,9 +8,6 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    env:
-      SF_SKIP_TOKEN_FILE_PERMISSIONS_VERIFICATION: true
-
     steps:
 
       - name: Checkout Repository
@@ -33,11 +30,6 @@ jobs:
 
           chmod 600 ~/.snowflake/rsa_key.p8
 
-      - name: Verify Private Key
-        run: |
-          head -1 ~/.snowflake/rsa_key.p8
-          tail -1 ~/.snowflake/rsa_key.p8
-
       - name: Create Snowflake Config
         run: |
           cat > ~/.snowflake/config.toml << EOF
@@ -55,91 +47,172 @@ jobs:
 
           chmod 600 ~/.snowflake/config.toml
 
-      - name: Test Snowflake Connection
+      - name: Test Connection
         run: |
           snow sql -c default -q "
-          SELECT
-              CURRENT_USER(),
-              CURRENT_ROLE(),
-              CURRENT_WAREHOUSE(),
-              CURRENT_DATABASE();
+          SELECT CURRENT_USER(),
+                 CURRENT_ROLE(),
+                 CURRENT_WAREHOUSE(),
+                 CURRENT_DATABASE();
           "
 
-      # Phase 01
+      ####################################################
+      # PHASE 01
+      ####################################################
 
       - name: Phase01 Environment
-        run: snow sql -c default -f phase01_environment/01_environment_setup.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase01_environment/01_environment_setup.sql
 
-      # Phase 02
+      ####################################################
+      # PHASE 02
+      ####################################################
 
       - name: Phase02 Security
-        run: snow sql -c default -f phase02_security/02_rbac_setup.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase02_security/02_rbac_setup.sql
 
-      # Phase 03
+      ####################################################
+      # PHASE 03
+      ####################################################
 
       - name: Phase03 File Formats
-        run: snow sql -c default -f phase03_ingestion/03_file_formats.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase03_ingestion/03_file_formats.sql
 
       - name: Phase03 Stages
-        run: snow sql -c default -f phase03_ingestion/04_stages.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase03_ingestion/04_stages.sql
 
       - name: Phase03 Raw Tables
-        run: snow sql -c default -f phase03_ingestion/05_tables_raw.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase03_ingestion/05_tables_raw.sql
+
+      - name: Upload CSV Files
+        run: |
+          snow stage copy \
+          snowflake-retail-analytics/data/customers.csv \
+          @RETAIL_DB.STAGE.CUSTOMERS_STAGE \
+          -c default
+
+          snow stage copy \
+          snowflake-retail-analytics/data/products.csv \
+          @RETAIL_DB.STAGE.PRODUCTS_STAGE \
+          -c default
+
+          snow stage copy \
+          snowflake-retail-analytics/data/stores.csv \
+          @RETAIL_DB.STAGE.STORES_STAGE \
+          -c default
+
+          snow stage copy \
+          snowflake-retail-analytics/data/sales.csv \
+          @RETAIL_DB.STAGE.SALES_STAGE \
+          -c default
 
       - name: Phase03 Copy Commands
-        run: snow sql -c default -f phase03_ingestion/06_copy_commands.yml
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase03_ingestion/06_copy_commands.sql
 
-      # Phase 04
+      ####################################################
+      # PHASE 04
+      ####################################################
 
       - name: Phase04 Data Quality
-        run: snow sql -c default -f phase04_data_quality/07_data_quality_checks.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase04_data_quality/07_data_quality_checks.sql
 
-      # Phase 05
+      ####################################################
+      # PHASE 05
+      ####################################################
 
       - name: Phase05 Transformations
-        run: snow sql -c default -f phase05_transformations/08_curated_layer.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase05_transformations/08_curated_layer.sql
 
-      # Phase 06
+      ####################################################
+      # PHASE 06
+      ####################################################
 
       - name: Phase06 Dynamic Tables
-        run: snow sql -c default -f phase06_dynamic_tables/09_dynamic_tables.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase06_dynamic_tables/09_dynamic_tables.sql
 
-      # Phase 07
+      ####################################################
+      # PHASE 07
+      ####################################################
 
       - name: Phase07 Streams
-        run: snow sql -c default -f phase07_streams/10_streams.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase07_streams/10_streams.sql
 
-      # Phase 08
+      ####################################################
+      # PHASE 08
+      ####################################################
 
       - name: Phase08 Tasks
-        run: snow sql -c default -f phase08_tasks/11_tasks.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase08_tasks/11_tasks.sql
 
-      # Phase 09
+      ####################################################
+      # PHASE 09
+      ####################################################
 
       - name: Phase09 Semi Structured
-        run: snow sql -c default -f phase09_semistructured/12_json_variant.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase09_semistructured/12_json_variant.sql
 
-      # Phase 10
+      ####################################################
+      # PHASE 10
+      ####################################################
 
       - name: Phase10 Time Travel
-        run: snow sql -c default -f phase10_time_travel/13_time_travel.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase10_time_travel/13_time_travel.sql
 
-      # Phase 11
+      ####################################################
+      # PHASE 11
+      ####################################################
 
       - name: Phase11 Cloning
-        run: snow sql -c default -f phase11_cloning/14_zero_copy_clone.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase11_cloning/14_zero_copy_clone.sql
 
-      # Phase 12
+      ####################################################
+      # PHASE 12
+      ####################################################
 
       - name: Phase12 Performance
-        run: snow sql -c default -f phase12_performance/15_performance_tuning.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase12_performance/15_performance_tuning.sql
 
-      # Phase 13
+      ####################################################
+      # PHASE 13
+      ####################################################
 
       - name: Phase13 External Tables
-        run: snow sql -c default -f phase13_external_tables/16_external_tables.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase13_external_tables/16_external_tables.sql
 
-      # Phase 14
+      ####################################################
+      # PHASE 14
+      ####################################################
 
       - name: Install Snowpark
         run: |
@@ -147,38 +220,62 @@ jobs:
 
       - name: Execute Snowpark Script
         run: |
-          python phase14_snowpark/snowpark_sales_analysis.py
+          python snowflake-retail-analytics/phase14_snowpark/snowpark_sales_analysis.py
 
-      # Phase 15
+      ####################################################
+      # PHASE 15
+      ####################################################
 
       - name: Phase15 Data Sharing
-        run: snow sql -c default -f phase15_data_sharing/17_data_sharing.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase15_data_sharing/17_data_sharing.sql
 
-      # Phase 16
+      ####################################################
+      # PHASE 16
+      ####################################################
 
       - name: Phase16 Cortex AI
-        run: snow sql -c default -f phase16_cortex_ai/18_cortex_ai.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase16_cortex_ai/18_cortex_ai.sql
 
-      # Phase 17
+      ####################################################
+      # PHASE 17
+      ####################################################
 
       - name: Phase17 Monitoring
-        run: snow sql -c default -f phase17_monitoring/19_monitoring.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase17_monitoring/19_monitoring.sql
 
-      # Phase 18
+      ####################################################
+      # PHASE 18
+      ####################################################
 
       - name: Phase18 Cost Optimization
-        run: snow sql -c default -f phase18_cost_optimization/20_resource_monitors.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase18_cost_optimization/20_resource_monitors.sql
 
-      # Phase 19
+      ####################################################
+      # PHASE 19
+      ####################################################
 
       - name: Phase19 Governance
-        run: snow sql -c default -f phase19_governance/21_governance.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase19_governance/21_governance.sql
 
-      # Phase 20
+      ####################################################
+      # PHASE 20
+      ####################################################
 
       - name: Phase20 Analytics Views
-        run: snow sql -c default -f phase20_capstone/22_analytics_views.sql
+        run: |
+          snow sql -c default \
+          -f snowflake-retail-analytics/phase20_capstone/22_analytics_views.sql
 
       - name: Deployment Complete
         run: |
-          echo "Snowflake Retail Analytics deployment completed successfully"
+          echo "Deployment completed successfully"
