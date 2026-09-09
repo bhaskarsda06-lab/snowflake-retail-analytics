@@ -1,0 +1,1 @@
+print("Snowpark example")
