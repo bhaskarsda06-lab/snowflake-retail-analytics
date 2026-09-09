@@ -1,2 +1,4 @@
 CUSTOMER_ID,NAME,EMAIL,CITY
 1,John,john@gmail.com,New York
+2,Alice,alice@gmail.com,Chicago
+3,Bob,bob@gmail.com,Dallas
