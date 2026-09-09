@@ -264,16 +264,17 @@ jobs:
         run: |
           snow sql -c default -f phase12_performance/15_performance_tuning.sql
 
-      #################################################
+            #################################################
       # PHASE 13
       #################################################
 
-    - name: Phase13 External Tables
-      run: |
-        snow sql -c default \ -f phase13_external_tables/16_external_tables.sql
+      - name: Phase13 External Tables
+        run: |
+          snow sql -c default \
+          -f phase13_external_tables/16_external_tables.sql
 
       #################################################
-      # PHASE 14
+      # PHASE 14 - SNOWPARK ANALYTICS
       #################################################
 
       - name: Install Snowpark
@@ -291,13 +292,32 @@ jobs:
         run: |
           python phase14_snowpark/snowpark_analytics.py
 
-      - name: Validate Snowpark Results
+      - name: Validate Product Summary
         run: |
           snow sql -c default -q "
-          SELECT COUNT(*) FROM RETAIL_DB.CURATED.PRODUCT_SALES_SUMMARY;
-          SELECT COUNT(*) FROM RETAIL_DB.CURATED.CUSTOMER_REVENUE_SUMMARY;
-          SELECT COUNT(*) FROM RETAIL_DB.CURATED.STORE_REVENUE_SUMMARY;
-          SELECT COUNT(*) FROM RETAIL_DB.CURATED.DAILY_REVENUE;
+          SELECT COUNT(*) AS PRODUCT_ROWS
+          FROM RETAIL_DB.CURATED.PRODUCT_SALES_SUMMARY;
+          "
+
+      - name: Validate Customer Summary
+        run: |
+          snow sql -c default -q "
+          SELECT COUNT(*) AS CUSTOMER_ROWS
+          FROM RETAIL_DB.CURATED.CUSTOMER_REVENUE_SUMMARY;
+          "
+
+      - name: Validate Store Summary
+        run: |
+          snow sql -c default -q "
+          SELECT COUNT(*) AS STORE_ROWS
+          FROM RETAIL_DB.CURATED.STORE_REVENUE_SUMMARY;
+          "
+
+      - name: Validate Daily Revenue
+        run: |
+          snow sql -c default -q "
+          SELECT COUNT(*) AS DAILY_ROWS
+          FROM RETAIL_DB.CURATED.DAILY_REVENUE;
           "
 
       #################################################
@@ -306,7 +326,8 @@ jobs:
 
       - name: Phase15 Data Sharing
         run: |
-          snow sql -c default -f phase15_data_sharing/17_data_sharing.sql
+          snow sql -c default \
+          -f phase15_data_sharing/17_data_sharing.sql
 
       #################################################
       # PHASE 16
@@ -314,7 +335,8 @@ jobs:
 
       - name: Phase16 Cortex AI
         run: |
-          snow sql -c default -f phase16_cortex_ai/18_cortex_ai.sql
+          snow sql -c default \
+          -f phase16_cortex_ai/18_cortex_ai.sql
 
       #################################################
       # PHASE 17
@@ -322,7 +344,8 @@ jobs:
 
       - name: Phase17 Monitoring
         run: |
-          snow sql -c default -f phase17_monitoring/19_monitoring.sql
+          snow sql -c default \
+          -f phase17_monitoring/19_monitoring.sql
 
       #################################################
       # PHASE 18
@@ -330,7 +353,8 @@ jobs:
 
       - name: Phase18 Resource Monitors
         run: |
-          snow sql -c default -f phase18_cost_optimization/20_resource_monitors.sql
+          snow sql -c default \
+          -f phase18_cost_optimization/20_resource_monitors.sql
 
       #################################################
       # PHASE 19
@@ -338,7 +362,8 @@ jobs:
 
       - name: Phase19 Governance
         run: |
-          snow sql -c default -f phase19_governance/21_governance.sql
+          snow sql -c default \
+          -f phase19_governance/21_governance.sql
 
       #################################################
       # PHASE 20
@@ -346,7 +371,8 @@ jobs:
 
       - name: Phase20 Analytics Views
         run: |
-          snow sql -c default -f phase20_capstone/22_analytics_views.sql
+          snow sql -c default \
+          -f phase20_capstone/22_analytics_views.sql
 
       #################################################
       # FINAL VALIDATION
@@ -354,12 +380,12 @@ jobs:
 
       - name: Validate Deployment
         run: |
-          snow sql -c default -q "
-          SHOW DATABASES;
-          SHOW SCHEMAS IN DATABASE RETAIL_DB;
-          SHOW TABLES IN SCHEMA RETAIL_DB.CURATED;
-          "
+          snow sql -c default -q "SHOW DATABASES;"
+          snow sql -c default -q "SHOW SCHEMAS IN DATABASE RETAIL_DB;"
+          snow sql -c default -q "SHOW TABLES IN SCHEMA RETAIL_DB.RAW;"
+          snow sql -c default -q "SHOW TABLES IN SCHEMA RETAIL_DB.CURATED;"
+          snow sql -c default -q "SHOW VIEWS IN SCHEMA RETAIL_DB.ANALYTICS;"
 
       - name: Deployment Complete
         run: |
-          echo 'Snowflake Retail Analytics deployment completed successfully'
+          echo "Snowflake Retail Analytics deployment completed successfully"
