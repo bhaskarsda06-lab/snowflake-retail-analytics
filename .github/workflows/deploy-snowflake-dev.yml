@@ -1,38 +1,8 @@
-name: Deploy Snowflake Retail Analytics DEV
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-jobs:
-  deploy-dev:
-
-    runs-on: ubuntu-latest
-
-    env:
-      SF_SKIP_TOKEN_FILE_PERMISSIONS_VERIFICATION: true
-
-    steps:
-
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
       - name: Install Snowflake CLI
         run: |
           pip install snowflake-cli
-      - name: Debug Connection
 
-        run: |
-          cat ~/.snowflake/config.toml | sed 's/password.*/password = "***"/g'
-      
-      - name: Configure Snowflake Connection
+      - name: Configure Snowflake JWT Connection
         run: |
           mkdir -p ~/.snowflake
 
@@ -55,7 +25,7 @@ jobs:
           role = "${{ secrets.SNOWFLAKE_ROLE }}"
           EOF
 
-         chmod 600 ~/.snowflake/config.toml
+          chmod 600 ~/.snowflake/config.toml
 
       - name: Verify Snowflake CLI
         run: |
@@ -63,72 +33,9 @@ jobs:
 
       - name: Test Snowflake Connection
         run: |
-          snow sql -c default -q "SELECT CURRENT_USER(), CURRENT_ROLE();"
-
-      # ==========================
-      # Phase 01
-      # ==========================
-
-      - name: Phase01 Environment
-        run: |
-          snow sql -c default -f phase01_environment/01_environment_setup.sql
-
-      # ==========================
-      # Phase 02
-      # ==========================
-
-      - name: Phase02 Security
-        run: |
-          snow sql -c default -f phase02_security/02_rbac_setup.sql
-
-      # ==========================
-      # Phase 03
-      # ==========================
-
-      - name: Phase03 File Formats
-        run: |
-          snow sql -c default -f phase03_ingestion/03_file_formats.sql
-
-      - name: Phase03 Stages
-        run: |
-          snow sql -c default -f phase03_ingestion/04_stages.sql
-
-      - name: Phase03 Raw Tables
-        run: |
-          snow sql -c default -f phase03_ingestion/05_tables_raw.sql
-
-      - name: Phase03 Copy Commands
-        run: |
-          snow sql -c default -f phase03_ingestion/06_copy_commands.sql
-
-      # ==========================
-      # Phase 04
-      # ==========================
-
-      - name: Phase04 Data Quality
-        run: |
-          snow sql -c default -f phase04_data_quality/07_data_quality_checks.sql
-
-      # ==========================
-      # Phase 05
-      # ==========================
-
-      - name: Phase05 Transformations
-        run: |
-          snow sql -c default -f phase05_transformations/08_curated_layer.sql
-
-      # ==========================
-      # Phase 06
-      # ==========================
-
-      - name: Phase06 Dynamic Tables
-        run: |
-          snow sql -c default -f phase06_dynamic_tables/09_dynamic_tables.sql
-
-      # ==========================
-      # Phase 07
-      # ==========================
-
-      - name: Phase07 Streams
-        run: |
-          snow sql -c default -f phase07_streams/10_streams.sql
+          snow sql -c default -q "
+          SELECT
+              CURRENT_USER(),
+              CURRENT_ROLE(),
+              CURRENT_WAREHOUSE(),
+              CURRENT_DATABASE();"
