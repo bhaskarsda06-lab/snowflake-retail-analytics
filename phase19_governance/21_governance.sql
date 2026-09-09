@@ -1,4 +1,4 @@
-CREATE MASKING POLICY EMAIL_MASK
+/*CREATE MASKING POLICY EMAIL_MASK
 AS (VAL STRING)
 RETURNS STRING ->
 CASE
@@ -9,4 +9,11 @@ END;
 
 ALTER TABLE CURATED.CUSTOMERS
 MODIFY COLUMN EMAIL
-SET MASKING POLICY EMAIL_MASK;
+SET MASKING POLICY EMAIL_MASK;*/
+
+
+-- Governance features not available in current Snowflake edition
+
+SELECT
+'Governance phase skipped - Masking Policies not supported in this account'
+AS STATUS;
