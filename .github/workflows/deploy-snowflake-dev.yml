@@ -1,4 +1,151 @@
+name: Deploy Snowflake Retail Analytics DEV
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Show Repository Structure
+        run: |
+          pwd
+          find . -type f | sort
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Snowflake CLI
+        run: |
+          pip install snowflake-cli
+
+      - name: Create Private Key
+        run: |
+          mkdir -p ~/.snowflake
+          printf "%s" "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > ~/.snowflake/rsa_key.p8
+          chmod 600 ~/.snowflake/rsa_key.p8
+
+      - name: Create Snowflake Config
+        run: |
+          cat > ~/.snowflake/config.toml << EOF
+          default_connection_name="default"
+
+          [connections.default]
+          account="${{ secrets.SNOWFLAKE_ACCOUNT }}"
+          user="${{ secrets.SNOWFLAKE_USER }}"
+          authenticator="SNOWFLAKE_JWT"
+          private_key_file="/home/runner/.snowflake/rsa_key.p8"
+          role="${{ secrets.SNOWFLAKE_ROLE }}"
+          warehouse="${{ secrets.SNOWFLAKE_WAREHOUSE }}"
+          database="${{ secrets.SNOWFLAKE_DATABASE }}"
+          EOF
+
+          chmod 600 ~/.snowflake/config.toml
+
+      - name: Test Snowflake Connection
+        run: |
+          snow sql -c default -q "
+          SELECT CURRENT_USER(),
+                 CURRENT_ROLE(),
+                 CURRENT_WAREHOUSE(),
+                 CURRENT_DATABASE();
+          "
+
       #################################################
+      # PHASE 01
+      #################################################
+
+      - name: Phase01 Environment
+        run: |
+          snow sql -c default \
+          -f phase01_environment/01_environment_setup.sql
+
+      #################################################
+      # PHASE 02
+      #################################################
+
+      - name: Phase02 Security
+        run: |
+          snow sql -c default \
+          -f phase02_security/02_rbac_setup.sql
+
+      #################################################
+      # PHASE 03
+      #################################################
+
+      - name: Phase03 File Formats
+        run: |
+          snow sql -c default \
+          -f phase03_ingestion/03_file_formats.sql
+
+      - name: Phase03 Stages
+        run: |
+          snow sql -c default \
+          -f phase03_ingestion/04_stages.sql
+
+      - name: Phase03 Raw Tables
+        run: |
+          snow sql -c default \
+          -f phase03_ingestion/05_tables_raw.sql
+
+      - name: Clean Stages
+        run: |
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.CUSTOMERS_STAGE;"
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.PRODUCTS_STAGE;"
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.STORES_STAGE;"
+          snow sql -c default -q "REMOVE @RETAIL_DB.STAGE.SALES_STAGE;"
+
+      - name: Verify CSV Files
+        run: |
+          echo "CUSTOMERS"
+          cat data/customers.csv
+
+          echo "PRODUCTS"
+          cat data/products.csv
+
+          echo "STORES"
+          cat data/stores.csv
+
+          echo "SALES"
+          cat data/sales.csv
+
+      - name: Upload CSV Files
+        run: |
+          snow stage copy data/customers.csv @RETAIL_DB.STAGE.CUSTOMERS_STAGE -c default --overwrite
+          snow stage copy data/products.csv @RETAIL_DB.STAGE.PRODUCTS_STAGE -c default --overwrite
+          snow stage copy data/stores.csv @RETAIL_DB.STAGE.STORES_STAGE -c default --overwrite
+          snow stage copy data/sales.csv @RETAIL_DB.STAGE.SALES_STAGE -c default --overwrite
+
+      - name: Phase03 Copy Commands
+        run: |
+          snow sql -c default \
+          -f phase03_ingestion/06_copy_commands.sql
+
+      - name: Validate Loaded Data
+        run: |
+          snow sql -c default -q "
+          SELECT 'CUSTOMERS' TABLE_NAME, COUNT(*) CNT FROM RETAIL_DB.RAW.CUSTOMERS
+          UNION ALL
+          SELECT 'PRODUCTS', COUNT(*) FROM RETAIL_DB.RAW.PRODUCTS
+          UNION ALL
+          SELECT 'STORES', COUNT(*) FROM RETAIL_DB.RAW.STORES
+          UNION ALL
+          SELECT 'SALES', COUNT(*) FROM RETAIL_DB.RAW.SALES;
+          "
+
+      - name: Deployment Complete
+        run: |
+          echo 'Phase 1 to 3 completed successfully'     
+
+     #################################################
       # PHASE 04
       #################################################
 
