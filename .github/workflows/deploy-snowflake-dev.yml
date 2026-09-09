@@ -1,0 +1,309 @@
+name: Deploy Snowflake Retail Analytics DEV
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+env:
+  SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+  SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+  SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+  SNOWFLAKE_ROLE: ACCOUNTADMIN
+  SNOWFLAKE_WAREHOUSE: RETAIL_WH
+  SNOWFLAKE_DATABASE: RETAIL_DB
+
+jobs:
+
+  deploy-dev:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Snowflake CLI
+        run: |
+          pip install snowflake-cli-labs
+
+      - name: Test Snowflake Connection
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          --query "SELECT CURRENT_VERSION();"
+
+      ################################################
+      # Phase 01 - Environment
+      ################################################
+
+      - name: Phase01 Environment
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase01_environment/01_environment_setup.sql
+
+      ################################################
+      # Phase 02 - Security
+      ################################################
+
+      - name: Phase02 Security
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase02_security/02_rbac_setup.sql
+
+      ################################################
+      # Phase 03 - Ingestion
+      ################################################
+
+      - name: Phase03 File Formats
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase03_ingestion/03_file_formats.sql
+
+      - name: Phase03 Stages
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase03_ingestion/04_stages.sql
+
+      - name: Phase03 Raw Tables
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase03_ingestion/05_tables_raw.sql
+
+      - name: Phase03 Load Data
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase03_ingestion/06_copy_commands.sql
+
+      ################################################
+      # Phase 04
+      ################################################
+
+      - name: Phase04 Data Quality
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase04_data_quality/07_data_quality_checks.sql
+
+      ################################################
+      # Phase 05
+      ################################################
+
+      - name: Phase05 Curated Layer
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase05_transformations/08_curated_layer.sql
+
+      ################################################
+      # Phase 06
+      ################################################
+
+      - name: Phase06 Dynamic Tables
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase06_dynamic_tables/09_dynamic_tables.sql
+
+      ################################################
+      # Phase 07
+      ################################################
+
+      - name: Phase07 Streams
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase07_streams/10_streams.sql
+
+      ################################################
+      # Phase 08
+      ################################################
+
+      - name: Phase08 Tasks
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase08_tasks/11_tasks.sql
+
+      ################################################
+      # Phase 09
+      ################################################
+
+      - name: Phase09 Semi Structured
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase09_semistructured/12_json_variant.sql
+
+      ################################################
+      # Phase 10
+      ################################################
+
+      - name: Phase10 Time Travel
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase10_time_travel/13_time_travel.sql
+
+      ################################################
+      # Phase 11
+      ################################################
+
+      - name: Phase11 Cloning
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase11_cloning/14_zero_copy_clone.sql
+
+      ################################################
+      # Phase 12
+      ################################################
+
+      - name: Phase12 Performance
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase12_performance/15_performance_tuning.sql
+
+      ################################################
+      # Phase 13
+      ################################################
+
+      - name: Phase13 External Tables
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase13_external_tables/16_external_tables.sql
+
+      ################################################
+      # Phase 14
+      ################################################
+
+      - name: Phase14 Snowpark
+        run: |
+          pip install snowflake-snowpark-python
+          python phase14_snowpark/snowpark_sales_analysis.py
+
+      ################################################
+      # Phase 15
+      ################################################
+
+      - name: Phase15 Data Sharing
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase15_data_sharing/17_data_sharing.sql
+
+      ################################################
+      # Phase 16
+      ################################################
+
+      - name: Phase16 Cortex AI
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase16_cortex_ai/18_cortex_ai.sql
+
+      ################################################
+      # Phase 17
+      ################################################
+
+      - name: Phase17 Monitoring
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase17_monitoring/19_monitoring.sql
+
+      ################################################
+      # Phase18
+      ################################################
+
+      - name: Phase18 Cost Optimization
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase18_cost_optimization/20_resource_monitors.sql
+
+      ################################################
+      # Phase19
+      ################################################
+
+      - name: Phase19 Governance
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase19_governance/21_governance.sql
+
+      ################################################
+      # Phase20
+      ################################################
+
+      - name: Phase20 Analytics Layer
+        run: |
+          snow sql \
+          --account $SNOWFLAKE_ACCOUNT \
+          --user $SNOWFLAKE_USER \
+          --password $SNOWFLAKE_PASSWORD \
+          -f phase20_capstone/22_analytics_views.sql
+
+      - name: Deployment Complete
+        run: |
+          echo "Snowflake Retail Analytics deployment completed successfully."
