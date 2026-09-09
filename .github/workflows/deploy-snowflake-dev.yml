@@ -10,28 +10,100 @@ jobs:
 
     steps:
 
+      #################################################
+      # CHECKOUT
+      #################################################
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      #################################################
+      # VALIDATE YAML FILES
+      #################################################
+
+      - name: Validate Workflow YAML Files
+        run: |
+          pip install pyyaml
+
+          python << 'PY'
+          import yaml
+          import glob
+
+          files = glob.glob(".github/workflows/*.yml")
+          files.extend(glob.glob(".github/workflows/*.yaml"))
+
+          for file in files:
+              with open(file, "r", encoding="utf-8") as f:
+                  yaml.safe_load(f)
+
+              print(f"SUCCESS: {file}")
+
+          print("All workflow YAML files are valid")
+          PY
+
+      #################################################
+      # VALIDATE REPOSITORY FILES
+      #################################################
+
+      - name: Validate Repository Structure
+        run: |
+          test -f phase01_environment/01_environment_setup.sql
+          test -f phase02_security/02_rbac_setup.sql
+          test -f phase03_ingestion/03_file_formats.sql
+          test -f phase03_ingestion/04_stages.sql
+          test -f phase03_ingestion/05_tables_raw.sql
+          test -f phase03_ingestion/06_copy_commands.sql
+
+          test -f data/customers.csv
+          test -f data/products.csv
+          test -f data/stores.csv
+          test -f data/sales.csv
+
+          test -f phase14_snowpark/snowpark_analytics.py
+
+          echo "Repository validation successful"
+
+      #################################################
+      # DISPLAY FILE STRUCTURE
+      #################################################
 
       - name: Show Repository Structure
         run: |
           pwd
           find . -type f | sort
 
+      #################################################
+      # PYTHON
+      #################################################
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      #################################################
+      # SNOWFLAKE CLI
+      #################################################
+
       - name: Install Snowflake CLI
         run: |
           pip install snowflake-cli
 
+      #################################################
+      # JWT PRIVATE KEY
+      #################################################
+
       - name: Create Private Key
         run: |
           mkdir -p ~/.snowflake
+
           printf "%s" "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > ~/.snowflake/rsa_key.p8
+
           chmod 600 ~/.snowflake/rsa_key.p8
+
+      #################################################
+      # SNOWFLAKE CONFIG
+      #################################################
 
       - name: Create Snowflake Config
         run: |
@@ -50,6 +122,10 @@ jobs:
 
           chmod 600 ~/.snowflake/config.toml
 
+      #################################################
+      # TEST CONNECTION
+      #################################################
+
       - name: Test Snowflake Connection
         run: |
           snow sql -c default -q "
@@ -65,8 +141,7 @@ jobs:
 
       - name: Phase01 Environment
         run: |
-          snow sql -c default \
-          -f phase01_environment/01_environment_setup.sql
+          snow sql -c default -f phase01_environment/01_environment_setup.sql
 
       #################################################
       # PHASE 02
@@ -74,8 +149,7 @@ jobs:
 
       - name: Phase02 Security
         run: |
-          snow sql -c default \
-          -f phase02_security/02_rbac_setup.sql
+          snow sql -c default -f phase02_security/02_rbac_setup.sql
 
       #################################################
       # PHASE 03
@@ -83,18 +157,15 @@ jobs:
 
       - name: Phase03 File Formats
         run: |
-          snow sql -c default \
-          -f phase03_ingestion/03_file_formats.sql
+          snow sql -c default -f phase03_ingestion/03_file_formats.sql
 
       - name: Phase03 Stages
         run: |
-          snow sql -c default \
-          -f phase03_ingestion/04_stages.sql
+          snow sql -c default -f phase03_ingestion/04_stages.sql
 
       - name: Phase03 Raw Tables
         run: |
-          snow sql -c default \
-          -f phase03_ingestion/05_tables_raw.sql
+          snow sql -c default -f phase03_ingestion/05_tables_raw.sql
 
       - name: Clean Stages
         run: |
@@ -105,16 +176,9 @@ jobs:
 
       - name: Verify CSV Files
         run: |
-          echo "CUSTOMERS"
           cat data/customers.csv
-
-          echo "PRODUCTS"
           cat data/products.csv
-
-          echo "STORES"
           cat data/stores.csv
-
-          echo "SALES"
           cat data/sales.csv
 
       - name: Upload CSV Files
@@ -126,33 +190,15 @@ jobs:
 
       - name: Phase03 Copy Commands
         run: |
-          snow sql -c default \
-          -f phase03_ingestion/06_copy_commands.sql
+          snow sql -c default -f phase03_ingestion/06_copy_commands.sql
 
-      - name: Validate Loaded Data
-        run: |
-          snow sql -c default -q "
-          SELECT 'CUSTOMERS' TABLE_NAME, COUNT(*) CNT FROM RETAIL_DB.RAW.CUSTOMERS
-          UNION ALL
-          SELECT 'PRODUCTS', COUNT(*) FROM RETAIL_DB.RAW.PRODUCTS
-          UNION ALL
-          SELECT 'STORES', COUNT(*) FROM RETAIL_DB.RAW.STORES
-          UNION ALL
-          SELECT 'SALES', COUNT(*) FROM RETAIL_DB.RAW.SALES;
-          "
-
-      - name: Deployment Complete
-        run: |
-          echo 'Phase 1 to 3 completed successfully'     
-
-     #################################################
+      #################################################
       # PHASE 04
       #################################################
 
       - name: Phase04 Data Quality
         run: |
-          snow sql -c default \
-          -f phase04_data_quality/07_data_quality_checks.sql
+          snow sql -c default -f phase04_data_quality/07_data_quality_checks.sql
 
       #################################################
       # PHASE 05
@@ -160,8 +206,7 @@ jobs:
 
       - name: Phase05 Curated Layer
         run: |
-          snow sql -c default \
-          -f phase05_transformations/08_curated_layer.sql
+          snow sql -c default -f phase05_transformations/08_curated_layer.sql
 
       #################################################
       # PHASE 06
@@ -169,8 +214,7 @@ jobs:
 
       - name: Phase06 Dynamic Tables
         run: |
-          snow sql -c default \
-          -f phase06_dynamic_tables/09_dynamic_tables.sql
+          snow sql -c default -f phase06_dynamic_tables/09_dynamic_tables.sql
 
       #################################################
       # PHASE 07
@@ -178,8 +222,7 @@ jobs:
 
       - name: Phase07 Streams
         run: |
-          snow sql -c default \
-          -f phase07_streams/10_streams.sql
+          snow sql -c default -f phase07_streams/10_streams.sql
 
       #################################################
       # PHASE 08
@@ -187,8 +230,7 @@ jobs:
 
       - name: Phase08 Tasks
         run: |
-          snow sql -c default \
-          -f phase08_tasks/11_tasks.sql
+          snow sql -c default -f phase08_tasks/11_tasks.sql
 
       #################################################
       # PHASE 09
@@ -196,8 +238,7 @@ jobs:
 
       - name: Phase09 Semi Structured Data
         run: |
-          snow sql -c default \
-          -f phase09_semistructured/12_json_variant.sql
+          snow sql -c default -f phase09_semistructured/12_json_variant.sql
 
       #################################################
       # PHASE 10
@@ -205,8 +246,7 @@ jobs:
 
       - name: Phase10 Time Travel
         run: |
-          snow sql -c default \
-          -f phase10_time_travel/13_time_travel.sql
+          snow sql -c default -f phase10_time_travel/13_time_travel.sql
 
       #################################################
       # PHASE 11
@@ -214,8 +254,7 @@ jobs:
 
       - name: Phase11 Zero Copy Clone
         run: |
-          snow sql -c default \
-          -f phase11_cloning/14_zero_copy_clone.sql
+          snow sql -c default -f phase11_cloning/14_zero_copy_clone.sql
 
       #################################################
       # PHASE 12
@@ -223,8 +262,7 @@ jobs:
 
       - name: Phase12 Performance Tuning
         run: |
-          snow sql -c default \
-          -f phase12_performance/15_performance_tuning.sql
+          snow sql -c default -f phase12_performance/15_performance_tuning.sql
 
       #################################################
       # PHASE 13
@@ -232,8 +270,7 @@ jobs:
 
       - name: Phase13 External Tables
         run: |
-          snow sql -c default \
-          -f phase13_external_tables/16_external_tables.sql
+          SELECT 'External Tables skipped - No external cloud configured' AS STATUS;
 
       #################################################
       # PHASE 14
@@ -243,12 +280,25 @@ jobs:
         run: |
           pip install snowflake-snowpark-python
 
-      - name: Run Snowpark Script
+      - name: Execute Snowpark Analytics
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_PRIVATE_KEY_FILE: /home/runner/.snowflake/rsa_key.p8
         run: |
-          python phase14_snowpark/snowpark_sales_analysis.py
+          python phase14_snowpark/snowpark_analytics.py
+
+      - name: Validate Snowpark Results
+        run: |
+          snow sql -c default -q "
+          SELECT COUNT(*) FROM RETAIL_DB.CURATED.PRODUCT_SALES_SUMMARY;
+          SELECT COUNT(*) FROM RETAIL_DB.CURATED.CUSTOMER_REVENUE_SUMMARY;
+          SELECT COUNT(*) FROM RETAIL_DB.CURATED.STORE_REVENUE_SUMMARY;
+          SELECT COUNT(*) FROM RETAIL_DB.CURATED.DAILY_REVENUE;
+          "
 
       #################################################
       # PHASE 15
@@ -256,8 +306,7 @@ jobs:
 
       - name: Phase15 Data Sharing
         run: |
-          snow sql -c default \
-          -f phase15_data_sharing/17_data_sharing.sql
+          snow sql -c default -f phase15_data_sharing/17_data_sharing.sql
 
       #################################################
       # PHASE 16
@@ -265,8 +314,7 @@ jobs:
 
       - name: Phase16 Cortex AI
         run: |
-          snow sql -c default \
-          -f phase16_cortex_ai/18_cortex_ai.sql
+          snow sql -c default -f phase16_cortex_ai/18_cortex_ai.sql
 
       #################################################
       # PHASE 17
@@ -274,8 +322,7 @@ jobs:
 
       - name: Phase17 Monitoring
         run: |
-          snow sql -c default \
-          -f phase17_monitoring/19_monitoring.sql
+          snow sql -c default -f phase17_monitoring/19_monitoring.sql
 
       #################################################
       # PHASE 18
@@ -283,8 +330,7 @@ jobs:
 
       - name: Phase18 Resource Monitors
         run: |
-          snow sql -c default \
-          -f phase18_cost_optimization/20_resource_monitors.sql
+          snow sql -c default -f phase18_cost_optimization/20_resource_monitors.sql
 
       #################################################
       # PHASE 19
@@ -292,8 +338,7 @@ jobs:
 
       - name: Phase19 Governance
         run: |
-          snow sql -c default \
-          -f phase19_governance/21_governance.sql
+          snow sql -c default -f phase19_governance/21_governance.sql
 
       #################################################
       # PHASE 20
@@ -301,8 +346,7 @@ jobs:
 
       - name: Phase20 Analytics Views
         run: |
-          snow sql -c default \
-          -f phase20_capstone/22_analytics_views.sql
+          snow sql -c default -f phase20_capstone/22_analytics_views.sql
 
       #################################################
       # FINAL VALIDATION
@@ -313,6 +357,7 @@ jobs:
           snow sql -c default -q "
           SHOW DATABASES;
           SHOW SCHEMAS IN DATABASE RETAIL_DB;
+          SHOW TABLES IN SCHEMA RETAIL_DB.CURATED;
           "
 
       - name: Deployment Complete
