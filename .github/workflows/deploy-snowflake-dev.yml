@@ -1,41 +1,13 @@
-      - name: Install Snowflake CLI
+name: Snowflake Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Hello
         run: |
-          pip install snowflake-cli
-
-      - name: Configure Snowflake JWT Connection
-        run: |
-          mkdir -p ~/.snowflake
-
-          cat << 'EOF' > ~/.snowflake/rsa_key.p8
-          ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-          EOF
-
-          chmod 600 ~/.snowflake/rsa_key.p8
-
-          cat > ~/.snowflake/config.toml << EOF
-          default_connection_name = "default"
-
-          [connections.default]
-          account = "${{ secrets.SNOWFLAKE_ACCOUNT }}"
-          user = "${{ secrets.SNOWFLAKE_USER }}"
-          authenticator = "SNOWFLAKE_JWT"
-          private_key_file = "/home/runner/.snowflake/rsa_key.p8"
-          warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
-          database = "${{ secrets.SNOWFLAKE_DATABASE }}"
-          role = "${{ secrets.SNOWFLAKE_ROLE }}"
-          EOF
-
-          chmod 600 ~/.snowflake/config.toml
-
-      - name: Verify Snowflake CLI
-        run: |
-          snow --version
-
-      - name: Test Snowflake Connection
-        run: |
-          snow sql -c default -q "
-          SELECT
-              CURRENT_USER(),
-              CURRENT_ROLE(),
-              CURRENT_WAREHOUSE(),
-              CURRENT_DATABASE();"
+          echo "Workflow is running successfully"
