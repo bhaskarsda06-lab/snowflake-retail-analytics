@@ -1,4 +1,4 @@
-name: Snowflake Test
+name: Snowflake Connection Test
 
 on:
   workflow_dispatch:
@@ -8,6 +8,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Hello
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Snowflake CLI
         run: |
-          echo "Workflow is running successfully"
+          pip install snowflake-cli
+
+      - name: Create Private Key
+        run: |
+          mkdir -p ~/.snowflake
+
+          cat << 'EOF' > ~/.snowflake/rsa_key.p8
+          ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          EOF
+
+          chmod 600 ~/.snowflake/rsa_key.p8
+
+      - name: Create Config
+        run: |
+          cat > ~/.snowflake/config.toml << EOF
+          default_connection_name = "default"
+
+          [connections.default]
+          account = "${{ secrets.SNOWFLAKE_ACCOUNT }}"
+          user = "${{ secrets.SNOWFLAKE_USER }}"
+          authenticator = "SNOWFLAKE_JWT"
+          private_key_file = "/home/runner/.snowflake/rsa_key.p8"
+          warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
+          database = "${{ secrets.SNOWFLAKE_DATABASE }}"
+          role = "${{ secrets.SNOWFLAKE_ROLE }}"
+          EOF
+
+          chmod 600 ~/.snowflake/config.toml
+
+      - name: Test Connection
+        run: |
+          snow sql -c default -q "
+          SELECT
+            CURRENT_USER(),
+            CURRENT_ROLE(),
+            CURRENT_WAREHOUSE(),
+            CURRENT_DATABASE();
+          "
