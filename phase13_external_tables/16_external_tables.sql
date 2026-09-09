@@ -1,13 +1,4 @@
-NULL;
-/*CREATE EXTERNAL TABLE EXT_SALES(ID NUMBER) LOCATION=@EXT_S3_STAGE;
+-- External Tables phase skipped because no AWS S3,
+-- Azure Blob Storage, or Google Cloud Storage is configured.
 
-
-CREATE STAGE EXT_S3_STAGE
-URL='s3://retail-bucket/data';
-
-CREATE EXTERNAL TABLE EXT_SALES
-(
-    SALE_ID NUMBER AS VALUE:SALE_ID::NUMBER,
-    AMOUNT NUMBER AS VALUE:AMOUNT::NUMBER
-)
-LOCATION=@EXT_S3_STAGE;*/
+SELECT 'External Tables phase skipped - no external cloud storage configured' AS STATUS;
