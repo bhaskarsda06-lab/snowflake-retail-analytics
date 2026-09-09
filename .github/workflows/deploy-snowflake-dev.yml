@@ -268,9 +268,9 @@ jobs:
       # PHASE 13
       #################################################
 
-      - name: Phase13 External Tables
-        run: |
-          SELECT 'External Tables skipped - No external cloud configured' AS STATUS;
+    - name: Phase13 External Tables
+      run: |
+        snow sql -c default \ -f phase13_external_tables/16_external_tables.sql
 
       #################################################
       # PHASE 14
