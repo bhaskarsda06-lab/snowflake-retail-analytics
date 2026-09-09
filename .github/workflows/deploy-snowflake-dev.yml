@@ -27,7 +27,11 @@ jobs:
       - name: Install Snowflake CLI
         run: |
           pip install snowflake-cli
+      - name: Debug Connection
 
+        run: |
+          cat ~/.snowflake/config.toml | sed 's/password.*/password = "***"/g'
+      
       - name: Configure Snowflake Connection
         run: |
           mkdir -p ~/.snowflake
@@ -52,7 +56,7 @@ jobs:
 
       - name: Test Snowflake Connection
         run: |
-          snow sql -c default -q "SELECT CURRENT_VERSION();"
+          snow sql -c default -q "SELECT CURRENT_VERSION();" --debug
 
       # ==========================
       # Phase 01
